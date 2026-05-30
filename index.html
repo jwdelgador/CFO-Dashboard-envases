@@ -1,1 +1,732 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Envases del Perú S.A.C. — CFO Dashboard 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#04080f;color:#dde8f5;font-family:'Outfit',sans-serif;font-size:13px;min-height:100vh}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:#04080f}
+::-webkit-scrollbar-thumb{background:#1a3356;border-radius:3px}
+input[type=range]{-webkit-appearance:none;width:100%;height:4px;background:#132030;border-radius:2px;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#f59e0b;cursor:pointer}
+.tab-btn{padding:8px 13px;background:none;border:none;cursor:pointer;font-family:'Outfit',sans-serif;font-size:11px;white-space:nowrap;transition:all 0.15s;border-bottom:2px solid transparent;color:#7899bb}
+.tab-btn.active{color:#00d4ff;border-bottom-color:#00d4ff;font-weight:600}
+.tab-btn:hover{color:#dde8f5}
+.kcard{background:#0b1525;border:1px solid #132030;border-radius:8px;padding:13px 15px;border-left:3px solid #3a5068}
+.kcard.green{border-left-color:#22c55e}
+.kcard.amber{border-left-color:#f59e0b}
+.kcard.red{border-left-color:#ef4444;border-color:rgba(239,68,68,0.3)}
+.sec{background:#0b1525;border:1px solid #132030;border-radius:8px;padding:18px 20px;margin-bottom:14px}
+.sec-title{font-family:'Bebas Neue',cursive;font-size:14px;letter-spacing:2px;color:#00d4ff;margin-bottom:14px}
+.htable-wrap{overflow-x:auto}
+.htable{border-collapse:collapse;font-family:'JetBrains Mono',monospace;font-size:10px;min-width:1050px;width:100%}
+.htable th,.htable td{padding:4px 7px}
+.htable th{font-size:9px;font-weight:400;letter-spacing:1px;text-transform:uppercase}
+.alert{border-radius:6px;padding:8px 14px;margin-bottom:6px;font-size:11.5px;line-height:1.5}
+.btn-ai{padding:11px 26px;background:rgba(0,212,255,0.08);border:1px solid #00d4ff;border-radius:8px;color:#00d4ff;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px;margin-bottom:18px;transition:all 0.2s}
+.btn-ai:disabled{background:#132030;border-color:#132030;color:#3a5068;cursor:not-allowed}
+.btn-sc{padding:9px 14px;border-radius:6px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;transition:all 0.2s;border:1px solid #132030;background:transparent;color:#7899bb}
+.bar-bg{height:5px;background:#132030;border-radius:2px;margin-top:3px}
+.bar-fill{height:100%;border-radius:2px}
+.grid-kpi{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:10px;margin-bottom:18px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;flex-shrink:0}
+p{margin-bottom:8px;line-height:1.75}
+svg text{font-family:'JetBrains Mono',monospace}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const{useState,useMemo,createElement:h}=React;
+const T={bg:"#04080f",surf:"#07101e",card:"#0b1525",brd:"#132030",brdHi:"#1c3050",
+  cyan:"#00d4ff",green:"#22c55e",red:"#ef4444",amber:"#f59e0b",blue:"#3b82f6",pur:"#a855f7",
+  txt:"#dde8f5",sub:"#7899bb",mut:"#3a5068"};
+const MO=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+const sum=a=>a.reduce((x,y)=>x+y,0);
+const fS=n=>{if(n==null)return"—";const s=n<0?"-":"",abs=Math.abs(Math.round(n));return s+"S/ "+abs.toLocaleString("es-PE")};
+const fP=n=>n==null?"—":`${(n*100).toFixed(1)}%`;
+
+// ═══ MOTOR FINANCIERO ════════════════
+function calcModel(p={}){
+  const{cajaInicial=75000,crecMensual=0.005,factorPico=1.18,cvPct=0.45,serviciosPct=0.07,
+    alquiler=18000,sueldoBase=33800,cargasLab=0.48,horasExtras=0.30,
+    cobroContado=0.40,pagoContado=0.65,prestamo=200000,tea=0.10,plazo=36,cajaMinima=30000}=p;
+  const tem=tea/12,cuota=prestamo*tem/(1-Math.pow(1+tem,-plazo));
+  const planNorm=Math.round(sueldoBase*(1+cargasLab)),planPico=Math.round(sueldoBase*(1+horasExtras)*(1+cargasLab));
+  const cobroCred=1-cobroContado,pagoCred=1-pagoContado;
+  const ventas=[];for(let i=0;i<12;i++){let v=i===0?200000:ventas[i-1]*(1+crecMensual);if(i+1===7||i+1===8)v*=factorPico;ventas.push(Math.round(v));}
+  const cv=ventas.map(v=>Math.round(v*cvPct)),serv=ventas.map(v=>Math.round(v*serviciosPct));
+  const margContr=ventas.map((v,i)=>v-cv[i]-serv[i]),margPct=ventas.map((v,i)=>margContr[i]/v);
+  const plan=Array.from({length:12},(_,i)=>[7,8].includes(i+1)?planPico:planNorm);
+  const cobros=Array.from({length:12},(_,i)=>Math.round(ventas[i]*cobroContado+(i>0?ventas[i-1]*cobroCred:0)));
+  const pagosCv=Array.from({length:12},(_,i)=>Math.round(cv[i]*pagoContado+(i>0?cv[i-1]*pagoCred:0)));
+  const cxc=ventas.map(v=>Math.round(v*cobroCred)),cxp=cv.map(c=>Math.round(c*pagoCred));
+  const capInmov=cxc.map((c,i)=>c-cxp[i]);
+  const flujoOp=Array.from({length:12},(_,i)=>Math.round(cobros[i]-pagosCv[i]-serv[i]-alquiler-plan[i]));
+  const capexBruto=Array.from({length:12},(_,i)=>i===2?-200000:0);
+  const desInv=Array.from({length:12},(_,i)=>i===2?60000:0);
+  const flujoInv=Array.from({length:12},(_,i)=>i===2?-140000:0);
+  const sIniD=[],intD=[],amortD=[],cuotaD=[],sFinD=[];let sd=0;
+  for(let i=0;i<12;i++){
+    if(i===2){sIniD.push(0);intD.push(0);amortD.push(0);cuotaD.push(0);sFinD.push(prestamo);sd=prestamo;}
+    else if(i>2){const it=Math.round(sd*tem*100)/100,am=Math.round((cuota-it)*100)/100;sIniD.push(Math.round(sd));intD.push(it);amortD.push(am);cuotaD.push(Math.round(cuota));sFinD.push(Math.round(sd-am));sd-=am;}
+    else{sIniD.push(0);intD.push(0);amortD.push(0);cuotaD.push(0);sFinD.push(0);}
+  }
+  const flujoFin=Array.from({length:12},(_,i)=>i===2?prestamo:i>2?Math.round(-cuota):0);
+  const flujoNeto=flujoOp.map((v,i)=>v+flujoInv[i]+flujoFin[i]);
+  const saldoCaja=[];for(let i=0;i<12;i++)saldoCaja.push(Math.round((i===0?cajaInicial:saldoCaja[i-1])+flujoNeto[i]));
+  const dscr=Array.from({length:12},(_,i)=>cuotaD[i]>0?flujoOp[i]/cuotaD[i]:null);
+  const dep=Array.from({length:12},(_,i)=>i>=2?Math.round(200000/120):0);
+  const ebitda=ventas.map((v,i)=>v-cv[i]-serv[i]-alquiler-plan[i]);
+  const ventasA=sum(ventas),flujoOpA=sum(flujoOp),servDA=sum(cuotaD);
+  const dscrVals=dscr.filter(d=>d!==null);
+  return{ventas,cv,serv,margContr,margPct,plan,cobros,pagosCv,cxc,cxp,capInmov,ebitda,
+    flujoOp,capexBruto,desInv,flujoInv,flujoFin,flujoNeto,saldoCaja,
+    sIniD,intD,amortD,cuotaD,sFinD,dscr,dep,cuota,planNorm,planPico,
+    cajaInicial,ventasA,flujoOpA,flujoLibA:flujoOpA-servDA,
+    cajaFinal:saldoCaja[11],cajaMin:Math.min(...saldoCaja),
+    mesCritico:saldoCaja.indexOf(Math.min(...saldoCaja))+1,
+    saldoDeudaFin:sFinD[11],dscrMin:dscrVals.length?Math.min(...dscrVals):null,
+    margProm:sum(margPct)/12,capInmovMax:Math.max(...capInmov),
+    cajaMinima,primerFlujoPos:flujoNeto.findIndex(v=>v>0)+1};
+}
+
+// ═══ GRÁFICOS SVG PUROS ═════════════
+function AreaSVG({data,dataKey,min2Key,color="#00d4ff",refY,refLabel,h2=220,fmt=fS}){
+  const W=680,H=h2,PL=10,PR=10,PT=15,PB=28;
+  const vals=data.map(d=>d[dataKey]);
+  const allV=[...vals];if(refY!=null)allV.push(refY);
+  const mn=Math.min(...allV)*0.95,mx=Math.max(...allV)*1.05;
+  const xS=(W-PL-PR)/(data.length-1);
+  const yS=v=>PT+(H-PT-PB)*(1-(v-mn)/(mx-mn));
+  const pts=vals.map((v,i)=>`${PL+i*xS},${yS(v)}`).join(" ");
+  const area=`M${PL},${yS(vals[0])} `+vals.map((v,i)=>`L${PL+i*xS},${yS(v)}`).join(" ")+` L${PL+(data.length-1)*xS},${H-PB} L${PL},${H-PB} Z`;
+  return h("svg",{width:"100%",viewBox:`0 0 ${W} ${H}`,preserveAspectRatio:"none"},
+    h("defs",{},h("linearGradient",{id:"ag",x1:"0",y1:"0",x2:"0",y2:"1"},
+      h("stop",{offset:"5%",stopColor:color,stopOpacity:"0.25"}),
+      h("stop",{offset:"95%",stopColor:color,stopOpacity:"0"}))),
+    // grid lines
+    ...[0,0.25,0.5,0.75,1].map(f=>h("line",{key:f,x1:PL,y1:PT+(H-PT-PB)*f,x2:W-PR,y2:PT+(H-PT-PB)*f,stroke:T.brd,strokeWidth:"0.5"})),
+    // ref line
+    refY!=null&&h("line",{x1:PL,y1:yS(refY),x2:W-PR,y2:yS(refY),stroke:T.red,strokeWidth:"1",strokeDasharray:"5,3"}),
+    refY!=null&&h("text",{x:W-PR-2,y:yS(refY)-4,fill:T.red,fontSize:"8",textAnchor:"end"},[refLabel||"Mín"]),
+    // area fill
+    h("path",{d:area,fill:"url(#ag)"}),
+    // line
+    h("polyline",{points:pts,fill:"none",stroke:color,strokeWidth:"2"}),
+    // x labels
+    ...data.map((d,i)=>h("text",{key:i,x:PL+i*xS,y:H,fill:T.sub,fontSize:"9",textAnchor:"middle"},[d.mes]))
+  );
+}
+
+function BarSVG({data,keys,colors,stacked=false,h2=200,fmt=fS}){
+  const W=680,H=h2,PL=10,PR=10,PT=15,PB=28;
+  const allV=stacked
+    ?data.map(d=>keys.reduce((s,k)=>s+(d[k]||0),0))
+    :data.flatMap(d=>keys.map(k=>Math.abs(d[k]||0)));
+  const mx=Math.max(...allV)*1.1||1;
+  const bW=(W-PL-PR)/(data.length*1.4);
+  const yS=v=>PT+(H-PT-PB)*(1-v/mx);
+  const bH=v=>(H-PT-PB)*v/mx;
+  return h("svg",{width:"100%",viewBox:`0 0 ${W} ${H}`,preserveAspectRatio:"none"},
+    ...[0,0.25,0.5,0.75,1].map(f=>h("line",{key:f,x1:PL,y1:PT+(H-PT-PB)*f,x2:W-PR,y2:PT+(H-PT-PB)*f,stroke:T.brd,strokeWidth:"0.5"})),
+    ...data.map((d,i)=>{
+      const gW=(W-PL-PR)/data.length;
+      const gX=PL+i*gW+gW*0.15;
+      if(stacked){
+        let y0=H-PB;const rects=[];
+        keys.forEach((k,ki)=>{const v=Math.abs(d[k]||0),bh=bH(v);y0-=bh;rects.push(h("rect",{key:ki,x:gX,y:y0,width:bW*0.7,height:bh,fill:colors[ki],rx:"1"}));});
+        return h("g",{key:i},...rects,h("text",{x:gX+bW*0.35,y:H,fill:[6,7].includes(i)?T.amber:T.sub,fontSize:"9",textAnchor:"middle"},[d.mes]));
+      }
+      const kW=bW*0.7/keys.length;
+      return h("g",{key:i},
+        ...keys.map((k,ki)=>{
+          const v=d[k]||0,pos=v>=0,bh=bH(Math.abs(v));
+          return h("rect",{key:ki,x:gX+ki*kW,y:pos?yS(Math.abs(v)):H-PB,width:kW-1,height:bh,fill:colors[ki]||T.cyan,rx:"1"});
+        }),
+        h("text",{x:gX+bW*0.35,y:H,fill:[6,7].includes(i)?T.amber:T.sub,fontSize:"9",textAnchor:"middle"},[d.mes])
+      );
+    })
+  );
+}
+
+function LineSVG({data,lines,h2=200,refLines=[]}){
+  const W=680,H=h2,PL=10,PR=10,PT=15,PB=28;
+  const allV=data.flatMap(d=>lines.map(l=>d[l.key])).filter(v=>v!=null&&!isNaN(v));
+  refLines.forEach(r=>allV.push(r.y));
+  const mn=Math.min(...allV)*0.9,mx=Math.max(...allV)*1.1||1;
+  const xS=(W-PL-PR)/(data.length-1||1);
+  const yS=v=>PT+(H-PT-PB)*(1-(v-mn)/(mx-mn));
+  return h("svg",{width:"100%",viewBox:`0 0 ${W} ${H}`,preserveAspectRatio:"none"},
+    ...[0,0.25,0.5,0.75,1].map(f=>h("line",{key:f,x1:PL,y1:PT+(H-PT-PB)*f,x2:W-PR,y2:PT+(H-PT-PB)*f,stroke:T.brd,strokeWidth:"0.5"})),
+    ...refLines.map((r,ri)=>h("g",{key:ri},
+      h("line",{x1:PL,y1:yS(r.y),x2:W-PR,y2:yS(r.y),stroke:r.color||T.red,strokeWidth:"1",strokeDasharray:"4,3"}),
+      h("text",{x:W-PR-2,y:yS(r.y)-4,fill:r.color||T.red,fontSize:"8",textAnchor:"end"},[r.label||""])
+    )),
+    ...lines.map((l,li)=>{
+      const pts=data.map((d,i)=>{const v=d[l.key];return v!=null?`${PL+i*xS},${yS(v)}`:null;}).filter(Boolean);
+      return h("g",{key:li},
+        h("polyline",{points:pts.join(" "),fill:"none",stroke:l.color,strokeWidth:"2",strokeDasharray:l.dash||"none"}),
+        ...data.map((d,i)=>{const v=d[l.key];return v!=null?h("circle",{key:i,cx:PL+i*xS,cy:yS(v),r:"3",fill:l.color}):null;})
+      );
+    }),
+    ...data.map((d,i)=>h("text",{key:i,x:PL+i*xS,y:H,fill:T.sub,fontSize:"9",textAnchor:"middle"},[d.mes||MO[i]]))
+  );
+}
+
+// ═══ UI COMPARTIDO ═══════════════════
+const Dot=({s})=>{const c={green:T.green,amber:T.amber,red:T.red}[s]||T.mut;
+  return h("span",{className:"dot",style:{background:c,boxShadow:`0 0 5px ${c}`}});};
+
+const KCard=({label,value,status,sub})=>h("div",{className:`kcard ${status||""}`},
+  h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:7}},
+    h("span",{style:{fontSize:9,color:T.sub,textTransform:"uppercase",letterSpacing:1.5,lineHeight:1.2}},[label]),
+    h(Dot,{s:status})
+  ),
+  h("div",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:16,fontWeight:600,color:T.txt}},[value]),
+  sub&&h("div",{style:{fontSize:10,color:T.mut,marginTop:3,lineHeight:1.3}},[sub])
+);
+
+const Sec=({title,color=T.cyan,children})=>h("div",{className:"sec"},
+  title&&h("div",{className:"sec-title",style:{color}},[title]),children);
+
+function HTable({rows,isPeak=[6,7]}){
+  return h("div",{className:"htable-wrap"},
+    h("table",{className:"htable"},
+      h("thead",{},h("tr",{style:{borderBottom:`2px solid ${T.brdHi}`}},
+        h("th",{style:{textAlign:"left",padding:"5px 10px",color:T.sub,minWidth:230,position:"sticky",left:0,background:T.card}},["CONCEPTO"]),
+        ...MO.map((m,i)=>h("th",{key:m,style:{textAlign:"right",color:isPeak.includes(i)?T.amber:T.sub,minWidth:70,background:isPeak.includes(i)?"rgba(245,158,11,0.07)":T.card}},[m+(isPeak.includes(i)?"*":"")])),
+        h("th",{style:{textAlign:"right",padding:"5px 8px",color:T.txt,minWidth:90,borderLeft:`1px solid ${T.brdHi}`,background:T.card}},["TOTAL"])
+      )),
+      h("tbody",{},rows.map((row,ri)=>{
+        if(row===null)return h("tr",{key:ri},h("td",{colSpan:14,style:{padding:3,borderTop:`1px solid ${T.brd}`}}));
+        if(row.sep)return h("tr",{key:ri},h("td",{colSpan:14,style:{padding:"8px 10px 3px",fontSize:9,color:T.mut,letterSpacing:1.5,borderTop:`1px solid ${T.brd}`,position:"sticky",left:0,background:T.card}},[row.sep]));
+        const bold=["subtotal","total","header"].includes(row.style);
+        const getC=v=>{
+          if(row.style==="header")return v>30000?T.cyan:v>0?T.amber:T.red;
+          if(bold)return v>=0?T.txt:T.red;
+          if(row.isText)return T.green;
+          if(row.color)return v===0?T.mut:row.color;
+          return v>0?T.green:v<0?T.red:T.mut;
+        };
+        return h("tr",{key:ri,style:{borderTop:row.style==="total"?`1px solid ${T.brdHi}`:"none"}},
+          h("td",{style:{padding:"4px 10px",color:bold?T.txt:T.sub,fontWeight:bold?700:400,fontSize:bold?11:10,position:"sticky",left:0,background:T.card}},[row.label]),
+          ...row.data.map((v,ci)=>h("td",{key:ci,style:{textAlign:"right",padding:"4px 7px",color:getC(row.isText?1:v),fontWeight:bold?600:400,background:isPeak.includes(ci)?"rgba(245,158,11,0.03)":"transparent",fontSize:bold?11:10}},
+            [row.isText?v:(v===0?h("span",{style:{color:T.mut}},["—"]):fS(v))]
+          )),
+          h("td",{style:{textAlign:"right",padding:"4px 8px",color:row.total!=null?(row.total>=0?T.cyan:T.red):T.mut,fontWeight:600,borderLeft:`1px solid ${T.brd}`,fontSize:bold?11:10}},
+            [row.total!=null?fS(row.total):"—"]
+          )
+        );
+      }))
+    )
+  );
+}
+
+// ═══ TAB 1: DASHBOARD ════════════════
+function DashboardTab({m}){
+  const cD=MO.map((mo,i)=>({mes:mo,saldo:m.saldoCaja[i],flujoOp:m.flujoOp[i]}));
+  const kpis=[
+    {label:"Ventas Anuales",value:fS(m.ventasA),status:m.ventasA>2500000?"green":"amber",sub:"Base S/200k · Tendencia +0.5%/mes"},
+    {label:"Flujo Op. Anual",value:fS(m.flujoOpA),status:m.flujoOpA>0?"green":"red",sub:"Sin CAPEX ni deuda"},
+    {label:"Flujo Libre Anual",value:fS(m.flujoLibA),status:m.flujoLibA>0?"green":"amber",sub:"FO − servicio deuda"},
+    {label:"Caja Final (Dic-26)",value:fS(m.cajaFinal),status:m.cajaFinal>100000?"green":m.cajaFinal>30000?"amber":"red"},
+    {label:"Caja Mínima",value:fS(m.cajaMin),status:m.cajaMin>m.cajaMinima?"green":m.cajaMin>0?"amber":"red",sub:"Mín. ref. S/ 30,000"},
+    {label:"Mes Crítico",value:`${MO[m.mesCritico-1]} (Mes ${m.mesCritico})`,status:m.cajaMin<m.cajaMinima?"red":"amber"},
+    {label:"1er Flujo Neto (+)",value:`${MO[m.primerFlujoPos-1]} (M${m.primerFlujoPos})`,status:"amber"},
+    {label:"Saldo Deuda Dic-26",value:fS(m.saldoDeudaFin),status:"amber",sub:"Plazo 36 meses"},
+    {label:"DSCR Mínimo",value:m.dscrMin?m.dscrMin.toFixed(2)+"x":"—",status:m.dscrMin&&m.dscrMin>1.5?"green":m.dscrMin&&m.dscrMin>1?"amber":"red",sub:"FO real / cuota"},
+    {label:"Margen Contrib. Prom.",value:fP(m.margProm),status:m.margProm>0.46?"green":"amber"},
+    {label:"Cap. Inmov. Máximo",value:fS(m.capInmovMax),status:"amber",sub:"CxC − CxP (pico jul-ago)"},
+    {label:"Préstamo vs CAPEX",value:"✅ Exceso S/ 60k",status:"green",sub:"S/200k > S/140k CAPEX neto"},
+  ];
+  return h("div",{},
+    h("div",{className:"grid-kpi"},...kpis.map((k,i)=>h(KCard,{key:i,...k}))),
+    h("div",{style:{marginBottom:14}},
+      ...[
+        {t:"red",msg:`⚠ Caja cae a ${fS(m.cajaMin)} en ${MO[m.mesCritico-1]} — por debajo del mínimo S/ 30,000. Caja inicial S/ 75,000 es el único buffer en enero.`},
+        {t:"amber",msg:`⚡ Mes 1: cobros reales ${fS(m.cobros[0])} (40% contado, sin arrastre) vs egresos ~S/ 140k. Déficit absorbido por caja inicial.`},
+        {t:"amber",msg:`📊 DSCR mínimo ${m.dscrMin?m.dscrMin.toFixed(2)+"x":"—"} en julio por pico planilla +${fS(m.planPico-m.planNorm)}. Holgado pero monitorear.`},
+      ].map((a,i)=>h("div",{key:i,className:"alert",style:{background:a.t==="red"?"rgba(239,68,68,0.07)":"rgba(245,158,11,0.07)",border:`1px solid ${a.t==="red"?T.red:T.amber}`,color:a.t==="red"?T.red:T.amber}},[a.msg]))
+    ),
+    h(Sec,{title:"EVOLUCIÓN SALDO DE CAJA 2026 vs MÍNIMA S/ 30,000"},
+      h(AreaSVG,{data:cD,dataKey:"saldo",color:T.cyan,refY:m.cajaMinima,refLabel:"Mín. S/30k",h2:240})
+    ),
+    h(Sec,{title:"¿QUÉ NOS DICEN ESTOS NÚMEROS?"},
+      h("div",{style:{fontSize:12.5,color:T.sub,lineHeight:1.85}},
+        h("p",{},[h("strong",{style:{color:T.txt}},["📌 Empresa operativamente sólida: "]),`margen ${fP(m.margProm)}, ventas ${fS(m.ventasA)} anuales. Tendencia +0.5%/mes y pico ×1.18 en jul-ago generan curva sólida al cierre.`]),
+        h("p",{},[h("strong",{style:{color:T.amber}},["⚠ Mes 1 bajo tensión: "]),`sin arrastre, cobros ${fS(m.cobros[0])} vs egresos ~S/140k. Caja cae a ${fS(m.cajaMin)}. Los S/75,000 iniciales son el único colchón.`]),
+        h("p",{},[h("strong",{style:{color:T.green}},["✅ Mes 3 = inflexión: "]),`préstamo +S/200k, CAPEX neto −S/140k. Saldo sube a ${fS(m.saldoCaja[2])}. Desde abril: cuota ${fS(m.cuota)}/mes y caja holgada.`]),
+        h("p",{},[h("strong",{style:{color:T.txt}},["📈 Pico jul-ago: "]),`FO julio ${fS(m.flujoOp[6])} (el más bajo post-Mes 1) por horas extras +${fS(m.planPico-m.planNorm)} y mayor CV. Septiembre recupera: ${fS(m.flujoOp[8])}/mes.`])
+      )
+    )
+  );
+}
+
+// ═══ TAB 2: FLUJO DE CAJA ════════════
+function FlujoCajaTab({m}){
+  const saldoIni=[m.cajaInicial,...m.saldoCaja.slice(0,-1)];
+  const rows=[
+    {label:"SALDO INICIAL CAJA",data:saldoIni,style:"header"},
+    {sep:"── FLUJO OPERATIVO ─────────────────────────────────────────────"},
+    {label:"(+) Cobros reales",data:m.cobros,total:sum(m.cobros),color:T.green},
+    {label:"   Cobro contado 40%",data:m.ventas.map(v=>Math.round(v*0.4)),color:T.green},
+    {label:"   Cobro 30 días 60% (Mes 1 = S/0 sin arrastre)",data:m.cobros.map((c,i)=>Math.round(c-m.ventas[i]*0.4)),color:T.green},
+    {label:"(-) Pagos CV proveedores",data:m.pagosCv.map(v=>-v),total:-sum(m.pagosCv),color:T.red},
+    {label:"(-) Servicios básicos 7%",data:m.serv.map(v=>-v),total:-sum(m.serv),color:T.red},
+    {label:"(-) Alquiler nave industrial",data:Array(12).fill(-18000),total:-216000,color:T.red},
+    {label:"(-) Planilla (normal / pico jul-ago*)",data:m.plan.map(v=>-v),total:-Math.round(sum(m.plan)),color:T.red},
+    {label:"FLUJO OPERATIVO",data:m.flujoOp,total:m.flujoOpA,style:"subtotal"},
+    {sep:"── FLUJO INVERSIÓN ─────────────────────────────────────────────"},
+    {label:"(-) CAPEX extrusora nueva",data:m.capexBruto,total:-200000,color:T.red},
+    {label:"(+) Desinversión inyectora  [NO es ingreso operativo]",data:m.desInv,total:60000,color:T.green},
+    {label:"FLUJO INVERSIÓN",data:m.flujoInv,total:-140000,style:"subtotal"},
+    {sep:"── FLUJO FINANCIAMIENTO ────────────────────────────────────────"},
+    {label:"(+) Préstamo recibido",data:Array.from({length:12},(_,i)=>i===2?200000:0),total:200000,color:T.green},
+    {label:"(-) Servicio deuda — cuota PMT",data:m.cuotaD.map(v=>v>0?-v:0),total:-Math.round(sum(m.cuotaD)),color:T.red},
+    {label:"FLUJO FINANCIAMIENTO",data:m.flujoFin,total:Math.round(sum(m.flujoFin)),style:"subtotal"},
+    {label:"FLUJO NETO DEL PERÍODO",data:m.flujoNeto,total:sum(m.flujoNeto),style:"total"},
+    {label:"SALDO FINAL CAJA",data:m.saldoCaja,style:"header"},
+    {label:"Caja mínima de seguridad",data:Array(12).fill(m.cajaMinima),color:T.mut},
+  ];
+  const cD=MO.map((mo,i)=>({mes:mo,saldo:m.saldoCaja[i],flujoOp:m.flujoOp[i]}));
+  return h("div",{},
+    h(Sec,{},
+      h("div",{style:{fontFamily:"'Bebas Neue',cursive",fontSize:14,letterSpacing:2,color:T.cyan,marginBottom:6}},["FLUJO DE CAJA PROYECTADO — HORIZONTAL (S/, SIN IGV)"]),
+      h("div",{style:{fontSize:10,color:T.mut,marginBottom:12}},["* Pico jul-ago (×1.18) | Desinversión S/60k en bloque inversión, NO en cobros operativos"]),
+      h(HTable,{rows}),
+      h("div",{style:{marginTop:12,display:"flex",gap:20,fontSize:11,color:T.sub,flexWrap:"wrap"}},
+        h("span",{},["Cuota PMT: ",h("strong",{style:{color:T.amber,fontFamily:"'JetBrains Mono',monospace"}},[fS(m.cuota)]),"/mes"]),
+        h("span",{},["Inicio cuotas: ",h("strong",{},[" Mes 4 (abr-26)"])]),
+        h("span",{},["CAPEX neto: ",h("strong",{style:{color:T.amber}},["S/ 140,000"])]),
+        h("span",{},["Exceso préstamo: ",h("strong",{style:{color:T.green}},["S/ 60,000 de caja libre Mes 3"])])
+      )
+    ),
+    h("div",{className:"grid-2"},
+      h(Sec,{title:"SALDO DE CAJA MENSUAL"},
+        h(AreaSVG,{data:cD,dataKey:"saldo",color:T.cyan,refY:m.cajaMinima,refLabel:"Mín. S/30k",h2:210})
+      ),
+      h(Sec,{title:"FLUJO OPERATIVO MENSUAL",color:T.green},
+        h(BarSVG,{data:cD,keys:["flujoOp"],colors:cD.map(d=>d.flujoOp>=0?T.green:T.red),h2:210})
+      )
+    )
+  );
+}
+
+// ═══ TAB 3: VENTAS ═══════════════════
+function VentasTab({m}){
+  const eR=m.ventas.map(v=>Math.round(v*0.5));
+  const lP=m.ventas.map(v=>Math.round(v*0.3));
+  const bPE=m.ventas.map(v=>Math.round(v*0.2));
+  const cD=MO.map((mo,i)=>({mes:mo,eR:eR[i],lP:lP[i],bPE:bPE[i]}));
+  const rows=[
+    {label:"Envases Rígidos Termoformados (50%)",data:eR,total:sum(eR),color:"#00d4ff"},
+    {label:"Láminas Polipropileno PP (30%)",data:lP,total:sum(lP),color:"#a855f7"},
+    {label:"Bolsas Polietileno PE (20%)",data:bPE,total:sum(bPE),color:"#22c55e"},
+    {label:"TOTAL VENTAS",data:m.ventas,total:m.ventasA,style:"total"},
+  ];
+  return h("div",{},
+    h(Sec,{title:"VENTAS MENSUALES POR LÍNEA (S/)"},
+      h(HTable,{rows}),
+      h("div",{style:{marginTop:8,fontSize:10,color:T.mut}},["SARIMA simplificado: +0.5%/mes · Pico estacional ×1.18 jul-ago (sector alimentos/cosmética)"])
+    ),
+    h("div",{className:"grid-2"},
+      h(Sec,{title:"VENTAS MENSUALES APILADAS"},
+        h(BarSVG,{data:cD,keys:["eR","lP","bPE"],colors:["#00d4ff","#a855f7","#22c55e"],stacked:true,h2:220})
+      ),
+      h(Sec,{title:"MIX DE INGRESOS ANUALES"},
+        h("div",{style:{padding:"10px 0"}},
+          ...[
+            {name:"Envases Rígidos",pct:0.5,color:"#00d4ff",desc:"25,000 u × S/4.00"},
+            {name:"Láminas PP",pct:0.3,color:"#a855f7",desc:"8,500 kg × S/7.06"},
+            {name:"Bolsas PE",pct:0.2,color:"#22c55e",desc:"20,000 u × S/2.00"},
+          ].map((p,i)=>h("div",{key:i,style:{marginBottom:20}},
+            h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:4}},
+              h("span",{style:{fontSize:12,color:T.sub}},[p.name]),
+              h("span",{style:{fontSize:13,fontFamily:"'JetBrains Mono',monospace",color:p.color,fontWeight:600}},[fP(p.pct)])
+            ),
+            h("div",{className:"bar-bg"},h("div",{className:"bar-fill",style:{width:`${p.pct*100}%`,background:p.color}})),
+            h("div",{style:{fontSize:10,color:T.mut,marginTop:3}},[`${p.desc} · ${fS(m.ventasA*p.pct)}/año`])
+          ))
+        )
+      )
+    )
+  );
+}
+
+// ═══ TAB 4: COSTOS ═══════════════════
+function CostosTab({m}){
+  const rows=[
+    {label:"Ventas (referencia)",data:m.ventas,total:m.ventasA,color:T.cyan},
+    {label:"(-) Costo Variable 45%",data:m.cv.map(v=>-v),total:-sum(m.cv),color:T.red},
+    {label:"(-) Servicios Básicos 7%",data:m.serv.map(v=>-v),total:-sum(m.serv),color:T.red},
+    {label:"MARGEN CONTRIBUCIÓN (48%)",data:m.margContr,total:sum(m.margContr),style:"subtotal",color:T.green},
+    {label:"Margen % mensual",data:m.margPct.map(v=>fP(v)),isText:true},
+    null,
+    {label:"(-) Alquiler nave industrial",data:Array(12).fill(-18000),total:-216000,color:T.red},
+    {label:"(-) Planilla (normal / pico*)",data:m.plan.map(v=>-v),total:-Math.round(sum(m.plan)),color:T.red},
+    {label:"EBITDA REFERENCIAL (devengo)",data:m.ebitda,total:sum(m.ebitda),style:"total",color:T.amber},
+    {label:"Depreciación extrusora (ref., NO flujo caja)",data:m.dep,total:sum(m.dep),color:T.mut},
+  ];
+  const cD=MO.map((mo,i)=>({mes:mo,margPct:parseFloat((m.margPct[i]*100).toFixed(1))}));
+  const planPct=Math.round(sum(m.plan))/m.ventasA;
+  return h("div",{},
+    h(Sec,{title:"ESTRUCTURA DE COSTOS Y RESULTADO"},h(HTable,{rows}),
+      h("div",{style:{marginTop:8,fontSize:10,color:T.mut}},["EBITDA = devengo. Depreciación S/1,667/mes solo referencial — NO entra al flujo de caja."])
+    ),
+    h("div",{className:"grid-2"},
+      h(Sec,{title:"MARGEN CONTRIBUCIÓN % MENSUAL"},
+        h(LineSVG,{data:cD,lines:[{key:"margPct",color:T.green}],h2:210,
+          refLines:[{y:44,label:"Alerta 44%",color:T.amber},{y:40,label:"Crítico 40%",color:T.red}]})
+      ),
+      h(Sec,{title:"COMPOSICIÓN COSTOS (% ventas anuales)"},
+        h("div",{style:{padding:"8px 0"}},
+          ...[
+            {name:"Costo variable",pct:0.45,color:T.red},
+            {name:"Servicios básicos",pct:0.07,color:"#f97316"},
+            {name:"Planilla incl. cargas",pct:planPct,color:"#a855f7"},
+            {name:"Alquiler nave",pct:216000/m.ventasA,color:"#64748b"},
+            {name:"EBITDA ref.",pct:sum(m.ebitda)/m.ventasA,color:T.green},
+          ].map((row,i)=>h("div",{key:i,style:{marginBottom:12}},
+            h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:3}},
+              h("span",{style:{fontSize:11,color:T.sub}},[row.name]),
+              h("span",{style:{fontSize:11,fontFamily:"'JetBrains Mono',monospace",color:row.color,fontWeight:600}},[fP(row.pct)])
+            ),
+            h("div",{className:"bar-bg"},h("div",{className:"bar-fill",style:{width:`${Math.min(row.pct*200,100)}%`,background:row.color}}))
+          ))
+        ),
+        h("div",{style:{marginTop:10,padding:10,background:"rgba(245,158,11,0.06)",border:`1px solid rgba(245,158,11,0.2)`,borderRadius:6,fontSize:11,color:T.sub}},
+          ["⚠ Pico jul-ago: margen % estable (CV proporcional), pero planilla sube +",h("strong",{style:{color:T.amber}},[fS(m.planPico-m.planNorm)])," por horas extras."]
+        )
+      )
+    )
+  );
+}
+
+// ═══ TAB 5: CAPITAL DE TRABAJO ════════
+function CapTrabajoTab({m}){
+  const rows=[
+    {label:"Ventas devengadas",data:m.ventas,color:T.cyan},
+    {label:"Cobro contado 40%",data:m.ventas.map(v=>Math.round(v*0.4)),color:T.green},
+    {label:"Cobro 30 días 60% (Mes 1 = S/0, sin arrastre)",data:m.cobros.map((c,i)=>Math.round(c-m.ventas[i]*0.4)),color:T.green},
+    {label:"COBROS REALES DEL MES",data:m.cobros,total:sum(m.cobros),style:"subtotal",color:T.green},
+    {label:"CxC pendiente cobro (60% ventas)",data:m.cxc,color:T.amber},
+    null,
+    {label:"CV devengado",data:m.cv,color:T.sub},
+    {label:"Pago contado 65%",data:m.cv.map(v=>Math.round(v*0.65)),color:T.red},
+    {label:"Pago crédito 35% (Mes 1 = S/0, sin arrastre)",data:m.pagosCv.map((p,i)=>Math.round(p-m.cv[i]*0.65)),color:T.red},
+    {label:"PAGOS CV REALES DEL MES",data:m.pagosCv,total:sum(m.pagosCv),style:"subtotal",color:T.red},
+    {label:"CxP pendiente pago (35% CV)",data:m.cxp,color:T.amber},
+    null,
+    {label:"CAPITAL INMOVILIZADO (CxC − CxP)",data:m.capInmov,style:"total",color:T.amber},
+  ];
+  const cD=MO.map((mo,i)=>({mes:mo,cxc:m.cxc[i],cxp:m.cxp[i],cobros:m.cobros[i],pagos:m.pagosCv[i]}));
+  return h("div",{},
+    h(Sec,{title:"COBROS Y PAGOS REALES — CAPITAL DE TRABAJO"},h(HTable,{rows})),
+    h("div",{className:"grid-2"},
+      h(Sec,{title:"CxC vs CxP MENSUAL"},
+        h(BarSVG,{data:cD,keys:["cxc","cxp"],colors:[T.amber,T.blue],h2:210})
+      ),
+      h(Sec,{title:"COBROS vs PAGOS CV REALES"},
+        h(BarSVG,{data:cD,keys:["cobros","pagos"],colors:[T.green,T.red],h2:210})
+      )
+    )
+  );
+}
+
+// ═══ TAB 6: FINANCIAMIENTO ════════════
+function FinancTab({m}){
+  const rows=[
+    {label:"Saldo inicial deuda",data:m.sIniD,color:T.sub},
+    {label:"(+) Desembolso préstamo (Mes 3)",data:Array.from({length:12},(_,i)=>i===2?200000:0),color:T.green},
+    {label:"Cuota mensual PMT = "+fS(m.cuota),data:m.cuotaD,color:T.amber},
+    {label:"   (-) Interés (TEM 0.833%)",data:m.intD.map(v=>Math.round(v)),color:T.red},
+    {label:"   (-) Amortización capital",data:m.amortD.map(v=>Math.round(v)),color:T.blue},
+    {label:"SALDO FINAL DEUDA",data:m.sFinD,style:"total",color:T.cyan},
+    {label:"Flujo operativo (ref. DSCR)",data:m.flujoOp,color:T.green},
+    {label:"DSCR = FO / Cuota (desde Mes 4)",data:m.dscr.map(d=>d||0),isDSCR:true},
+  ];
+  const cD2=MO.map((mo,i)=>({mes:mo,int:Math.round(m.intD[i]),amort:Math.round(m.amortD[i])})).filter(d=>d.int>0||d.amort>0);
+  const dscrD=MO.map((mo,i)=>({mes:mo,dscr:m.dscr[i]})).filter(d=>d.dscr!==null);
+  return h("div",{},
+    h(Sec,{title:`TABLA FRANCESA — S/ 200,000 · TEA 10% · 36 MESES · PMT: ${fS(m.cuota)}/mes`},
+      h("div",{className:"htable-wrap"},
+        h("table",{className:"htable"},
+          h("thead",{},h("tr",{style:{borderBottom:`2px solid ${T.brdHi}`}},
+            h("th",{style:{textAlign:"left",padding:"5px 10px",color:T.sub,minWidth:260,position:"sticky",left:0,background:T.card}},["CONCEPTO"]),
+            ...MO.map((mo,i)=>h("th",{key:mo,style:{textAlign:"right",color:[6,7].includes(i)?T.amber:i<2?"rgba(100,116,139,0.4)":T.sub,minWidth:70}},
+              [mo+(i===2?"⬇":"")])),
+            h("th",{style:{textAlign:"right",padding:"5px 8px",color:T.txt,minWidth:90,borderLeft:`1px solid ${T.brdHi}`}},["TOTAL"])
+          )),
+          h("tbody",{},rows.map((row,ri)=>{
+            const bold=row.style==="total";
+            return h("tr",{key:ri,style:{borderTop:bold?`1px solid ${T.brdHi}`:"none"}},
+              h("td",{style:{padding:"4px 10px",color:bold?T.txt:T.sub,fontWeight:bold?700:400,fontSize:10,position:"sticky",left:0,background:T.card}},[row.label]),
+              ...row.data.map((v,i)=>{
+                if(row.isDSCR){const d=m.dscr[i];return h("td",{key:i,style:{textAlign:"right",padding:"4px 7px",fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:d===null?T.mut:d<1?T.red:d<1.5?T.amber:T.green}},[d===null?"—":d.toFixed(2)+"x"]);}
+                return h("td",{key:i,style:{textAlign:"right",padding:"4px 7px",color:v===0?T.mut:(v>0?row.color||T.txt:T.red),fontWeight:bold?600:400,fontSize:10}},[v===0?h("span",{style:{color:T.mut}},["—"]):fS(v)]);
+              }),
+              h("td",{style:{textAlign:"right",padding:"4px 8px",color:T.cyan,fontWeight:600,borderLeft:`1px solid ${T.brd}`,fontSize:10}},
+                [row.isDSCR?"—":fS(sum(row.data.filter(v=>typeof v==="number"&&!isNaN(v))))]
+              )
+            );
+          }))
+        )
+      ),
+      h("div",{style:{marginTop:10,padding:"8px 14px",background:"rgba(0,212,255,0.05)",border:`1px solid rgba(0,212,255,0.15)`,borderRadius:6,fontSize:11,color:T.sub}},
+        ["💡 Mes 3 (⬇): desembolso S/200k, saldo=200,000, sin cuota. | Desde Mes 4: cuota ",fS(m.cuota),"/mes. | Exceso: ",h("strong",{style:{color:T.amber}},["S/60,000 caja libre."])]
+      )
+    ),
+    h("div",{className:"grid-2"},
+      h(Sec,{title:"COMPOSICIÓN CUOTA (Interés + Amortización)"},
+        h(BarSVG,{data:cD2,keys:["int","amort"],colors:[T.red,T.blue],stacked:true,h2:210})
+      ),
+      h(Sec,{title:"DSCR MENSUAL",color:T.green},
+        h(LineSVG,{data:dscrD,lines:[{key:"dscr",color:T.green}],h2:210,
+          refLines:[{y:1.5,label:"1.5x",color:T.amber},{y:1.0,label:"1.0x",color:T.red}]})
+      )
+    )
+  );
+}
+
+// ═══ TAB 7: CAPEX ════════════════════
+function CapexTab({m}){
+  const rows=[
+    {label:"(-) CAPEX extrusora nueva",data:m.capexBruto,total:-200000,color:T.red},
+    {label:"(+) Desinversión inyectora  [bloque inversión, NO operativo]",data:m.desInv,total:60000,color:T.green},
+    {label:"FLUJO NETO INVERSIÓN",data:m.flujoInv,total:-140000,style:"total"},
+    null,
+    {label:"Depreciación mensual (ref., NO flujo caja)",data:m.dep,total:sum(m.dep),color:T.mut},
+  ];
+  return h("div",{},
+    h("div",{className:"grid-3",style:{marginBottom:14}},
+      ...[
+        {icon:"🏭",label:"CAPEX — Extrusora Nueva",value:"S/ 200,000",sub:"Egreso Mes 3 · Bloque inversión",color:T.red},
+        {icon:"♻️",label:"Desinversión — Inyectora",value:"S/ 60,000",sub:"Ingreso Mes 3 · Bloque inversión (NO operativo)",color:T.green},
+        {icon:"📊",label:"Flujo Neto Inversión",value:"S/ -140,000",sub:"Exceso préstamo S/60k → caja libre Mes 3",color:T.amber},
+      ].map((c,i)=>h("div",{key:i,style:{background:T.card,border:`1px solid ${T.brd}`,borderRadius:8,padding:"18px 20px"}},
+        h("div",{style:{fontSize:26,marginBottom:10}},[c.icon]),
+        h("div",{style:{fontSize:9,color:T.sub,textTransform:"uppercase",letterSpacing:1.5,marginBottom:6}},[c.label]),
+        h("div",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:20,fontWeight:700,color:c.color}},[c.value]),
+        h("div",{style:{fontSize:10,color:T.mut,marginTop:5,lineHeight:1.5}},[c.sub])
+      ))
+    ),
+    h(Sec,{title:"CAPEX Y DEPRECIACIÓN"},h(HTable,{rows}),
+      h("div",{style:{marginTop:14,display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}},
+        h("div",{style:{padding:12,background:"rgba(59,130,246,0.06)",border:`1px solid rgba(59,130,246,0.2)`,borderRadius:6,fontSize:11,color:T.sub,lineHeight:1.6}},
+          ["💡 ",h("strong",{style:{color:T.blue}},["Clasificación correcta CFO: "]),
+           "La desinversión S/60,000 ",h("strong",{style:{color:T.blue}},["NO es ingreso operativo"]),
+           ". Clasificarla en cobros inflaría el FO y el DSCR. Correctamente en bloque inversión."]
+        ),
+        h("div",{style:{padding:12,background:"rgba(34,197,94,0.06)",border:`1px solid rgba(34,197,94,0.2)`,borderRadius:6,fontSize:11,color:T.sub,lineHeight:1.6}},
+          ["📈 ",h("strong",{style:{color:T.green}},["Retorno esperado: "]),
+           "Reducción costos mantenimiento + eliminación paradas no programadas. Depreciación S/1,667/mes × 10 años."]
+        )
+      )
+    )
+  );
+}
+
+// ═══ TAB 8: ESCENARIOS ════════════════
+const SCS={
+  base:{label:"Base",crecMensual:0.005,factorPico:1.18,cvPct:0.45,cobroContado:0.40,pagoContado:0.65,color:T.blue},
+  optimista:{label:"Optimista",crecMensual:0.01,factorPico:1.25,cvPct:0.42,cobroContado:0.50,pagoContado:0.70,color:T.green},
+  pesimista:{label:"Pesimista",crecMensual:0,factorPico:1.05,cvPct:0.50,cobroContado:0.35,pagoContado:0.60,color:T.red},
+};
+function EscenariosTab(){
+  const[sc,setSc]=useState("base");
+  const[custom,setCustom]=useState({crecMensual:0.005,factorPico:1.18,cvPct:0.45,cobroContado:0.40,pagoContado:0.65});
+  const mBase=useMemo(()=>calcModel(SCS.base),[]);
+  const mOpt=useMemo(()=>calcModel(SCS.optimista),[]);
+  const mPes=useMemo(()=>calcModel(SCS.pesimista),[]);
+  const mCus=useMemo(()=>calcModel(custom),[JSON.stringify(custom)]);
+  const mods={base:mBase,optimista:mOpt,pesimista:mPes,personalizado:mCus};
+  const cD=MO.map((mo,i)=>({mes:mo,base:mBase.saldoCaja[i],optimista:mOpt.saldoCaja[i],pesimista:mPes.saldoCaja[i],personalizado:mCus.saldoCaja[i]}));
+  const Sldr=({label,param,min,max,step,fmt})=>h("div",{style:{marginBottom:12}},
+    h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:3}},
+      h("span",{style:{fontSize:11,color:T.sub}},[label]),
+      h("span",{style:{fontSize:11,fontFamily:"'JetBrains Mono',monospace",color:T.amber,fontWeight:600}},[fmt(custom[param])])
+    ),
+    h("input",{type:"range",min,max,step,value:custom[param],onChange:e=>setCustom(p=>({...p,[param]:parseFloat(e.target.value)}))})
+  );
+  const scLines=[
+    {key:"base",color:T.blue},{key:"optimista",color:T.green,dash:"5,3"},
+    {key:"pesimista",color:T.red,dash:"5,3"},
+    ...(sc==="personalizado"?[{key:"personalizado",color:T.amber}]:[])
+  ];
+  return h("div",{},
+    h("div",{className:"grid-2",style:{marginBottom:14}},
+      h(Sec,{title:"SELECTOR DE ESCENARIOS"},
+        h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}},
+          ...[...Object.entries(SCS),["personalizado",{label:"Personalizado",color:T.amber}]].map(([key,s])=>
+            h("button",{key,className:"btn-sc",onClick:()=>setSc(key),
+              style:{background:sc===key?`${s.color}18`:"transparent",borderColor:sc===key?s.color:T.brd,color:sc===key?s.color:T.sub,fontWeight:sc===key?600:400}},
+              [s.label])
+          )
+        ),
+        sc==="personalizado"
+          ?h("div",{style:{padding:14,background:"rgba(255,255,255,0.02)",border:`1px solid ${T.brd}`,borderRadius:6}},
+              h(Sldr,{label:"Crecimiento mensual",param:"crecMensual",min:0,max:0.02,step:0.001,fmt:fP}),
+              h(Sldr,{label:"Factor pico jul-ago",param:"factorPico",min:1.0,max:1.5,step:0.01,fmt:v=>v.toFixed(2)+"x"}),
+              h(Sldr,{label:"Costo variable %",param:"cvPct",min:0.35,max:0.60,step:0.01,fmt:fP}),
+              h(Sldr,{label:"Cobro contado %",param:"cobroContado",min:0.20,max:0.80,step:0.05,fmt:fP}),
+              h(Sldr,{label:"Pago contado %",param:"pagoContado",min:0.50,max:1.00,step:0.05,fmt:fP})
+            )
+          :h("div",{style:{padding:12,background:"rgba(255,255,255,0.02)",border:`1px solid ${T.brd}`,borderRadius:6,fontSize:11,color:T.sub,lineHeight:2}},
+              ...[`Crecimiento: ${fP(SCS[sc]?.crecMensual)}/mes`,`Factor pico: ${(SCS[sc]?.factorPico||1).toFixed(2)}x`,`CV%: ${fP(SCS[sc]?.cvPct)}`,`Cobro contado: ${fP(SCS[sc]?.cobroContado)}`].map((s,i)=>h("div",{key:i},[s]))
+            )
+      ),
+      h(Sec,{title:"SALDO DE CAJA — 4 ESCENARIOS"},
+        h(LineSVG,{data:cD,lines:scLines,h2:240,refLines:[{y:30000,label:"Mín. S/30k",color:T.red}]})
+      )
+    ),
+    h(Sec,{title:"COMPARATIVA DE KPIs — 4 ESCENARIOS"},
+      h("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:11}},
+        h("thead",{},h("tr",{style:{borderBottom:`2px solid ${T.brdHi}`}},
+          h("th",{style:{textAlign:"left",padding:"6px 10px",color:T.sub,fontSize:10,minWidth:160}},["KPI"]),
+          ...[{l:"BASE",c:T.blue},{l:"OPTIMISTA",c:T.green},{l:"PESIMISTA",c:T.red},{l:"PERSONALIZADO",c:T.amber}].map(hd=>
+            h("th",{key:hd.l,style:{textAlign:"right",padding:"6px 10px",color:hd.c,fontSize:10}},[hd.l])
+          )
+        )),
+        h("tbody",{},...[
+          {label:"Ventas anuales",fn:md=>fS(md.ventasA)},
+          {label:"Flujo op. anual",fn:md=>fS(md.flujoOpA)},
+          {label:"Flujo libre",fn:md=>fS(md.flujoLibA)},
+          {label:"Caja final (dic-26)",fn:md=>fS(md.cajaFinal)},
+          {label:"Caja mínima",fn:md=>fS(md.cajaMin)},
+          {label:"Mes crítico",fn:md=>`${MO[md.mesCritico-1]} (M${md.mesCritico})`},
+          {label:"DSCR mínimo",fn:md=>md.dscrMin?md.dscrMin.toFixed(2)+"x":"—"},
+          {label:"Margen contrib. prom.",fn:md=>fP(md.margProm)},
+        ].map((row,ri)=>
+          h("tr",{key:ri,style:{borderBottom:`1px solid ${T.brd}`}},
+            h("td",{style:{padding:"6px 10px",color:T.sub,fontSize:11}},[row.label]),
+            ...["base","optimista","pesimista","personalizado"].map(k=>
+              h("td",{key:k,style:{textAlign:"right",padding:"6px 10px",fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:{base:T.blue,optimista:T.green,pesimista:T.red,personalizado:T.amber}[k]}},[row.fn(mods[k])])
+            )
+          )
+        ))
+      )
+    )
+  );
+}
+
+// ═══ TAB 9: ANÁLISIS IA ══════════════
+function AnalisisIA({m}){
+  const[mod,setMod]=useState("viabilidad");
+  const[loading,setLoading]=useState(false);
+  const[resultado,setResultado]=useState("");
+  const[showP,setShowP]=useState(false);
+  const[sentP,setSentP]=useState("");
+  const MODS={
+    viabilidad:{label:"✅ Viabilidad Financiera",color:T.green},
+    crediticio:{label:"🏦 Evaluación Crediticia",color:T.blue},
+    riesgos:{label:"⚠ Análisis de Riesgos",color:T.amber},
+    acciones90:{label:"🎯 Acciones 90 Días",color:T.cyan},
+    directorio:{label:"📋 Reporte Directorio",color:T.pur},
+  };
+  const ctx=`EMPRESA: Envases del Perú S.A.C. | Manufactura plásticos industrial | Lima SJL | 14 años | 22 trabajadores | B2B
+PROYECCIÓN: Ene-Dic 2026 | S/ | Sin IGV
+Ventas anuales: ${fS(m.ventasA)} | Base S/200,000/mes | +0.5%/mes | Pico ×1.18 jul-ago
+Flujo operativo anual: ${fS(m.flujoOpA)} | Flujo libre: ${fS(m.flujoLibA)}
+Caja inicial: S/75,000 | Caja final dic-26: ${fS(m.cajaFinal)} | Caja mínima: ${fS(m.cajaMin)} (Mes ${m.mesCritico})
+Margen contribución prom.: ${fP(m.margProm)} | EBITDA ref.: ${fS(sum(m.ebitda))}
+Deuda: S/200,000 (TEA 10%, 36m) | Cuota: ${fS(m.cuota)}/mes | DSCR mín.: ${m.dscrMin?m.dscrMin.toFixed(2)+"x":"—"}
+Saldo deuda dic-26: ${fS(m.saldoDeudaFin)} | Cap. inmovilizado máx.: ${fS(m.capInmovMax)}
+CAPEX: S/200,000 (M3) | Desinversión: S/60,000 | Neto: S/140,000
+Planilla normal: ${fS(m.planNorm)}/mes | Pico: ${fS(m.planPico)}/mes (+${fS(m.planPico-m.planNorm)})`;
+  const prompts={
+    viabilidad:`${ctx}\n\nAnaliza VIABILIDAD FINANCIERA:\n1. Diagnóstico (3 párrafos con cifras)\n2. Fortalezas clave (3 bullets)\n3. Vulnerabilidades críticas (3 bullets)\n4. Conclusión: ¿viable tal como está proyectado?\nTono CFO ejecutivo, español.`,
+    crediticio:`${ctx}\n\nEVALUACIÓN CREDITICIA como analista banco peruano:\n1. Perfil de riesgo\n2. Ratios: DSCR, cobertura, liquidez\n3. Capacidad de pago\n4. Recomendación y condiciones\n5. Red flags o covenants\nEspañol.`,
+    riesgos:`${ctx}\n\nANÁLISIS RIESGOS FINANCIEROS (mínimo 6):\nPor cada uno: nombre, probabilidad, impacto en S/, acción mitigante. CFO industrial, español.`,
+    acciones90:`${ctx}\n\nPLAN DE ACCIÓN 90 DÍAS:\nDías 1-30: Liquidez inmediata\nDías 31-60: Mejoras operativas\nDías 61-90: Acciones estructurales\nPor acción: responsable, impacto S/, prioridad. Español.`,
+    directorio:`${ctx}\n\nREPORTE DIRECTORIO:\n1. Resumen ejecutivo (no técnico)\n2. KPIs con semáforos\n3. Riesgos principales (3)\n4. Oportunidades de mejora\n5. Propuestas para decisión\nFormal ejecutivo, español.`,
+  };
+  const analizar=async()=>{
+    setLoading(true);setResultado("");
+    const prompt=prompts[mod];setSentP(prompt);
+    try{
+      const res=await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,
+          system:"Eres CFO senior con 20 años de experiencia en empresas industriales peruanas. Análisis directo, cuantitativo, orientado a decisiones. Responde en español.",
+          messages:[{role:"user",content:prompt}]
+        })
+      });
+      const data=await res.json();
+      setResultado(data.content?.map(b=>b.text||"").join("")||"Sin respuesta de la API.");
+    }catch(e){setResultado("Error de conexión con la API.\n\nNota: el módulo de IA requiere que el sitio esté servido con el proxy de Anthropic configurado (como en claude.ai). En GitHub Pages estático, este botón no funcionará por restricciones de CORS y autenticación.");}
+    setLoading(false);
+  };
+  return h("div",{},
+    h(Sec,{title:"ANÁLISIS FINANCIERO CON IA — CFO ASSISTANT"},
+      h("div",{style:{display:"flex",gap:8,flexWrap:"wrap",marginBottom:18}},
+        ...Object.entries(MODS).map(([key,md])=>
+          h("button",{key,className:"btn-sc",onClick:()=>setMod(key),
+            style:{background:mod===key?`${md.color}18`:"transparent",borderColor:mod===key?md.color:T.brd,color:mod===key?md.color:T.sub,fontWeight:mod===key?600:400}},
+            [md.label])
+        )
+      ),
+      h("button",{className:"btn-ai",onClick:analizar,disabled:loading},
+        [loading?"⏳  Analizando...":"🤖  Generar análisis: "+MODS[mod].label]
+      ),
+      resultado&&h("div",{style:{background:T.surf,border:`1px solid ${MODS[mod].color}40`,borderRadius:8,padding:20,marginBottom:14}},
+        h("div",{style:{fontFamily:"'Bebas Neue',cursive",fontSize:13,letterSpacing:2,color:MODS[mod].color,marginBottom:14}},[MODS[mod].label.toUpperCase()]),
+        h("div",{style:{fontSize:12.5,color:T.txt,lineHeight:1.85,whiteSpace:"pre-wrap"}},[resultado])
+      ),
+      h("button",{onClick:()=>setShowP(!showP),style:{background:"transparent",border:`1px solid ${T.brd}`,borderRadius:5,padding:"5px 12px",color:T.mut,fontSize:10,cursor:"pointer"}},
+        [showP?"▲ Ocultar prompt":"▼ Ver prompt enviado a la IA"]
+      ),
+      showP&&sentP&&h("div",{style:{marginTop:8,background:T.surf,border:`1px dashed ${T.brd}`,borderRadius:5,padding:12,fontSize:9.5,color:T.mut,fontFamily:"'JetBrains Mono',monospace",whiteSpace:"pre-wrap",maxHeight:200,overflowY:"auto",lineHeight:1.5}},[sentP])
+    ),
+    h(Sec,{title:"CONTEXTO ENVIADO A LA IA"},
+      h("div",{style:{fontSize:10.5,color:T.sub,fontFamily:"'JetBrains Mono',monospace",lineHeight:1.75,whiteSpace:"pre-wrap",background:T.surf,padding:14,borderRadius:6,border:`1px solid ${T.brd}`}},[ctx])
+    )
+  );
+}
+
+// ═══ APP PRINCIPAL ════════════════════
+function App(){
+  const[tab,setTab]=useState(0);
+  const model=useMemo(()=>calcModel({}),[]);
+  const TABS=["📊 Dashboard","💰 Flujo de Caja","📈 Ventas","⚙️ Costos","🔄 Cap. Trabajo","🏦 Financiamiento","🔧 CAPEX","🎭 Escenarios","🤖 Análisis IA"];
+  const comps=[
+    h(DashboardTab,{m:model}),h(FlujoCajaTab,{m:model}),h(VentasTab,{m:model}),
+    h(CostosTab,{m:model}),h(CapTrabajoTab,{m:model}),h(FinancTab,{m:model}),
+    h(CapexTab,{m:model}),h(EscenariosTab,{}),h(AnalisisIA,{m:model}),
+  ];
+  return h("div",{style:{minHeight:"100vh",background:T.bg}},
+    h("div",{style:{background:T.surf,borderBottom:`1px solid ${T.brd}`,padding:"10px 22px",display:"flex",alignItems:"center",gap:20,flexWrap:"wrap",position:"sticky",top:0,zIndex:100}},
+      h("div",{},
+        h("div",{style:{fontFamily:"'Bebas Neue',cursive",fontSize:20,letterSpacing:3,color:T.cyan}},["ENVASES DEL PERÚ S.A.C."]),
+        h("div",{style:{fontSize:9,color:T.mut,letterSpacing:1.5,marginTop:1}},["CFO DASHBOARD  ·  FLUJO DE CAJA 2026  ·  S/ SOLES  ·  SIN IGV  ·  12 MESES"])
+      ),
+      h("div",{style:{marginLeft:"auto",display:"flex",gap:22,flexWrap:"wrap"}},
+        ...[{l:"Ventas",v:fS(model.ventasA)},{l:"FO Anual",v:fS(model.flujoOpA)},{l:"Caja Final",v:fS(model.cajaFinal)},{l:"DSCR Mín.",v:model.dscrMin?model.dscrMin.toFixed(2)+"x":"—"}].map((k,i)=>
+          h("div",{key:i,style:{textAlign:"right"}},
+            h("div",{style:{fontSize:8.5,color:T.mut,letterSpacing:1.5,textTransform:"uppercase"}},[k.l]),
+            h("div",{style:{fontSize:13,fontFamily:"'JetBrains Mono',monospace",fontWeight:600,color:T.txt}},[k.v])
+          )
+        )
+      )
+    ),
+    h("div",{style:{background:T.surf,borderBottom:`1px solid ${T.brd}`,display:"flex",overflowX:"auto",position:"sticky",top:55,zIndex:99}},
+      h("div",{style:{padding:"0 22px",display:"flex",gap:0}},
+        ...TABS.map((t,i)=>h("button",{key:i,className:`tab-btn${tab===i?" active":""}`,onClick:()=>setTab(i)},[t]))
+      )
+    ),
+    h("div",{style:{padding:"18px 22px",maxWidth:1400,margin:"0 auto"}},[comps[tab]])
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(h(App));
+</script>
+</body>
+</html>
 
